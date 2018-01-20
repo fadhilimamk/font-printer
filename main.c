@@ -12,15 +12,25 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#define CHAR_WIDTH 15
+#define CHAR_WIDTH 5
 #define CHAR_HEIGHT 20
+#define SCALE 5
 
 struct fb_var_screeninfo vinfo;
 struct fb_fix_screeninfo finfo;
 char *fbp = 0;
 
+int char_height = 5;    // Character height in pixel, same for all char
+int num_of_char = 0;    // Number of available char
+char *char_index = 0;   // Array of char
+int *char_width = 0;    // Array of char size, can be accessed with index
+char **font = 0;        // Map of pixel for every character
+
+void initFont(char *filename);
+int getCharIndex(char c);
 void drawPixel(int x, int y, unsigned int color);
 void drawChar(int x, int y, char c);
+int drawUnknownChar(int x, int y);
 unsigned int rgbaToInt(int r, int g, int b, int a);
 
 int main() {
@@ -59,6 +69,8 @@ int main() {
         exit(4);
     }
 
+    initFont("template");
+
     // Draw text 
     printf("Input text: "); scanf("%s", text);
     for (i = 0; i < strlen(text); i++) {
@@ -75,40 +87,93 @@ int main() {
     return 0;
 }
 
+void initFont(char *filename) {
+    // Read from external file: filename
+    char_height = 5;
+    num_of_char = 1;
+    
+    char_index = (char*) malloc(num_of_char * sizeof(char));
+    char_width = (int*) malloc(num_of_char * sizeof(int));
+    font = (char**) malloc(num_of_char);
+
+    // Inject dummy data
+    char_index[0] = 'A';
+    char_width[0] = 4;
+    font[0] = "01101001111110011001";
+}
+
+int getCharIndex(char c) {
+    int i = 0;
+    for (i = 0; i < num_of_char; i++) {
+        if (char_index[i] == c)
+            return i;
+    }
+    return -1;
+}
+
 void drawPixel(int x, int y, unsigned int color) {
     long int location;
-    location = (x+vinfo.xoffset) * (vinfo.bits_per_pixel/8) + (y+vinfo.yoffset) * finfo.line_length;
-    *(fbp + location) = color;
-    *(fbp + location + 1) = color >> 8;
-    *(fbp + location + 2) = color >> 16;
-    *(fbp + location + 3) = color >> 24;
+    int i = 0, j = 0;
+    x = x*SCALE; y = y*SCALE;
+    for (i = 0; i < SCALE; i++)
+        for (j = 0; j < SCALE; j++) {
+            location = (x+i+vinfo.xoffset) * (vinfo.bits_per_pixel/8) + (y+j+vinfo.yoffset) * finfo.line_length;
+            *(fbp + location) = color;
+            *(fbp + location + 1) = color >> 8;
+            *(fbp + location + 2) = color >> 16;
+            *(fbp + location + 3) = color >> 24;
+        }
 }
 
 void drawChar(int x, int y, char c) {
-    int i = 0, j = 0;
+    int i = 0, j = 0, k = 0;
+    unsigned int color = rgbaToInt(255, 0, 0, 0);
+    unsigned int black = rgbaToInt(0, 0, 0, 0);
+    int idx = getCharIndex(c);
+    int width = 4, pixel_length = 0;
+    char* pixel = 0;
+
+    if (idx == -1) {
+        drawUnknownChar(x,y);
+        return;
+    }
+    
+    width = char_width[idx];
+    pixel = font[idx];
+    pixel_length = strlen(pixel);
+
+    for (j = 0; j < char_height+2; j++)
+        for (i = 0; i < width+2; i++) {
+            if ((i == 0) || (i == width+1) || (j == 0) || (j == char_height+1))
+                drawPixel(i+x, j+y, black);
+            else {
+                if (k >= pixel_length) {
+                    drawPixel(i+x, j+y, black);
+                    continue;
+                }
+                if (pixel[k] == '0')
+                    drawPixel(i+x, j+y, black);
+                else
+                    drawPixel(i+x, j+y, color);
+                k++;
+            }
+        }
+}
+
+int drawUnknownChar(int x, int y) {
+    int i = 0, j = 0, width = 4;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
 
-    for (i = 1; i < CHAR_WIDTH; i++)
-        for (j = 1; j < CHAR_HEIGHT; j++) {
-            drawPixel(i+x, j+y, black);
-            switch(c) {
-                case 'A' :
-                    if ((i == 2 || i == CHAR_WIDTH-2) && (j > 1) && (j < CHAR_HEIGHT-1))
-                        drawPixel(i+x, j+y, color);
-                    if ((j == 2 || j == 7) && (i > 1) && (i < CHAR_WIDTH-1))
-                        drawPixel(i+x, j+y, color);
-                    break;
-                case ' ' :
-                    return;
-                default :
-                    if (i == 1 || i == CHAR_WIDTH-1)
-                        drawPixel(i+x, j+y, color);
-                    if (j == 1 || j == CHAR_HEIGHT-1)
-                        drawPixel(i+x, j+y, color);
-                    break;
+    for (i = 0; i < width+2; i++)
+        for (j = 0; j < char_height+2; j++)
+            if (i>0 && i < width+1 && j>0 && j < char_height+1) {
+                drawPixel(i+x, j+y, color);
+            } else {
+                drawPixel(i+x, j+y, black);
             }
-        }
+    
+    return width;
 }
 
 unsigned int rgbaToInt(int r, int g, int b, int a) {
