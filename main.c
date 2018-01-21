@@ -72,7 +72,7 @@ int main() {
     initFont("template");
 
     // Draw text 
-    printf("Input text: "); scanf("%s", text);
+    printf("Input text: "); scanf("%[^\n]s", text);
     for (i = 0; i < strlen(text); i++) {
         x += drawChar(x, y, text[i]);
         if (x > vinfo.xres/SCALE) {
@@ -100,8 +100,8 @@ void initFont(char *filename) {
     char_width[0] = 4;
     font[0] = "01101001111110011001";
     char_index[2] = ' ';
-    char_width[2] = 4;
-    font[2] = "00000000000000000000";
+    char_width[2] = 3;
+    font[2] = "000000000000000";
     char_index[1] = 'T';
     char_width[1] = 3;
     font[1] = "111010010010010";
