@@ -15,12 +15,14 @@
 #define CHAR_WIDTH 5
 #define CHAR_HEIGHT 20
 #define SCALE 5
+#define WHITE (rgbaToInt(255,255,255,0))
+#define BLACK (rgbaToInt(0,0,0,0))
 
 struct fb_var_screeninfo vinfo;
 struct fb_fix_screeninfo finfo;
 char *fbp = 0;
 
-int char_height = 5;    // Character height in pixel, same for all char
+int char_height = 0;    // Character height in pixel, same for all char
 int num_of_char = 0;    // Number of available char
 char *char_index = 0;   // Array of char
 int *char_width = 0;    // Array of char size, can be accessed with index
@@ -30,7 +32,7 @@ void initFont(char *filename);
 int getCharIndex(char c);
 void drawPixel(int x, int y, unsigned int color);
 void drawChar(int x, int y, char c);
-int drawUnknownChar(int x, int y);
+int drawUnknownum_of_charar(int x, int y);
 unsigned int rgbaToInt(int r, int g, int b, int a);
 
 int main() {
@@ -88,18 +90,73 @@ int main() {
 }
 
 void initFont(char *filename) {
-    // Read from external file: filename
-    char_height = 5;
-    num_of_char = 1;
-    
-    char_index = (char*) malloc(num_of_char * sizeof(char));
-    char_width = (int*) malloc(num_of_char * sizeof(int));
-    font = (char**) malloc(num_of_char);
+    FILE *fptr;
 
-    // Inject dummy data
-    char_index[0] = 'A';
-    char_width[0] = 4;
-    font[0] = "01101001111110011001";
+    // Read from external file: filename
+    fptr = fopen(filename, "r");
+    if (fptr == NULL){
+        printf("Cannot open file \n");
+
+        exit(0);
+    }
+
+    int* nCh = (int*) malloc(sizeof(int));
+    int* cHeight = (int*) malloc(sizeof(int));
+    fscanf (fptr, "%d %d\n", nCh, cHeight);
+
+    if (nCh == NULL || cHeight == NULL) {
+        printf ("failed to read font spec\n");
+    } else {
+        num_of_char = *nCh;
+        char_height = *cHeight;
+        printf("num_of_char: %d\n", num_of_char);
+        printf("char_height: %d\n", char_height);
+    }
+
+    char_index = (char*) malloc(num_of_char * sizeof(char));
+    font = (char**) malloc(num_of_char);
+    char_width = (int*) malloc(num_of_char * sizeof(int));
+
+    printf("Test:\n");
+    
+    for (int i = 0; i < num_of_char; i++) {
+        char cursor;
+        int* w = (int*) malloc(sizeof(int));
+        int formatLength = 0;
+
+        // get letter
+        cursor = fgetc(fptr);
+        char_index[i] = cursor;
+
+        // get width
+        fscanf (fptr, "|%d|", w);
+        if (w == NULL) {
+            printf("Failed to read width\n");
+            return;
+        } else {
+            char_width[i] = *w;
+            formatLength = (*w) * (char_height);
+            font[i] = (char*) malloc((formatLength) * sizeof(char));
+        }
+
+        // get format
+        int j = 0;
+        do {
+            cursor = fgetc(fptr);
+            if (cursor != '\n') {
+                font[i][j] = cursor;
+            }
+            j++;
+        } while (j < formatLength && cursor != '\n' && !feof(fptr));
+        
+        // print result
+        printf("letter: %c - width: %d - format_length : %d - format: %s\n", char_index[i], *w, formatLength, font[i]);
+
+        // enter new line
+        cursor = fgetc(fptr);
+    }
+
+    fclose(fptr);
 }
 
 int getCharIndex(char c) {
@@ -129,12 +186,13 @@ void drawChar(int x, int y, char c) {
     int i = 0, j = 0, k = 0;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
+    unsigned int white = rgbaToInt(0, 0, 0, 0);
     int idx = getCharIndex(c);
     int width = 4, pixel_length = 0;
     char* pixel = 0;
 
     if (idx == -1) {
-        drawUnknownChar(x,y);
+        drawUnknownum_of_charar(x,y);
         return;
     }
     
@@ -145,14 +203,14 @@ void drawChar(int x, int y, char c) {
     for (j = 0; j < char_height+2; j++)
         for (i = 0; i < width+2; i++) {
             if ((i == 0) || (i == width+1) || (j == 0) || (j == char_height+1))
-                drawPixel(i+x, j+y, black);
+                drawPixel(i+x, j+y, WHITE);
             else {
                 if (k >= pixel_length) {
-                    drawPixel(i+x, j+y, black);
+                    drawPixel(i+x, j+y, WHITE);
                     continue;
                 }
                 if (pixel[k] == '0')
-                    drawPixel(i+x, j+y, black);
+                    drawPixel(i+x, j+y, WHITE);
                 else
                     drawPixel(i+x, j+y, color);
                 k++;
@@ -160,7 +218,7 @@ void drawChar(int x, int y, char c) {
         }
 }
 
-int drawUnknownChar(int x, int y) {
+int drawUnknownum_of_charar(int x, int y) {
     int i = 0, j = 0, width = 4;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
