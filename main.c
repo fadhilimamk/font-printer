@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#define CHAR_WIDTH 5
+#define CHAR_WIDTH 6
 #define CHAR_HEIGHT 20
 #define SCALE 5
 
@@ -29,7 +29,7 @@ char **font = 0;        // Map of pixel for every character
 void initFont(char *filename);
 int getCharIndex(char c);
 void drawPixel(int x, int y, unsigned int color);
-void drawChar(int x, int y, char c);
+int drawChar(int x, int y, char c);
 int drawUnknownChar(int x, int y);
 unsigned int rgbaToInt(int r, int g, int b, int a);
 
@@ -74,11 +74,10 @@ int main() {
     // Draw text 
     printf("Input text: "); scanf("%s", text);
     for (i = 0; i < strlen(text); i++) {
-        drawChar(x, y, text[i]);
-        x += CHAR_WIDTH;
-        if (x > vinfo.xres) {
+        x += drawChar(x, y, text[i]);
+        if (x > vinfo.xres/SCALE) {
             x = 0;
-            y += CHAR_HEIGHT;
+            y += char_height+2;
         }
     }
     
@@ -90,16 +89,22 @@ int main() {
 void initFont(char *filename) {
     // Read from external file: filename
     char_height = 5;
-    num_of_char = 1;
+    num_of_char = 3;
     
     char_index = (char*) malloc(num_of_char * sizeof(char));
     char_width = (int*) malloc(num_of_char * sizeof(int));
     font = (char**) malloc(num_of_char);
 
-    // Inject dummy data
+    // Inject dummy data (sementara, karena belum bisa baca file eksternal)
     char_index[0] = 'A';
     char_width[0] = 4;
     font[0] = "01101001111110011001";
+    char_index[2] = ' ';
+    char_width[2] = 4;
+    font[2] = "00000000000000000000";
+    char_index[1] = 'T';
+    char_width[1] = 3;
+    font[1] = "111010010010010";
 }
 
 int getCharIndex(char c) {
@@ -125,7 +130,7 @@ void drawPixel(int x, int y, unsigned int color) {
         }
 }
 
-void drawChar(int x, int y, char c) {
+int drawChar(int x, int y, char c) {
     int i = 0, j = 0, k = 0;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
@@ -134,8 +139,12 @@ void drawChar(int x, int y, char c) {
     char* pixel = 0;
 
     if (idx == -1) {
-        drawUnknownChar(x,y);
-        return;
+        return drawUnknownChar(x,y);
+    }
+
+    if (x+width+2 > vinfo.xres/SCALE) {
+        x = 0;
+        y += char_height+2;
     }
     
     width = char_width[idx];
@@ -158,12 +167,19 @@ void drawChar(int x, int y, char c) {
                 k++;
             }
         }
+
+    return width+2;
 }
 
 int drawUnknownChar(int x, int y) {
     int i = 0, j = 0, width = 4;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
+
+    if (x+width+2 > vinfo.xres/SCALE) {
+        x = 0;
+        y += char_height+2;
+    }
 
     for (i = 0; i < width+2; i++)
         for (j = 0; j < char_height+2; j++)
@@ -173,7 +189,7 @@ int drawUnknownChar(int x, int y) {
                 drawPixel(i+x, j+y, black);
             }
     
-    return width;
+    return width+2;
 }
 
 unsigned int rgbaToInt(int r, int g, int b, int a) {
