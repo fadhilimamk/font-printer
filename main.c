@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#define CHAR_WIDTH 5
+#define CHAR_WIDTH 6
 #define CHAR_HEIGHT 20
 #define SCALE 5
 #define WHITE (rgbaToInt(255,255,255,0))
@@ -31,8 +31,8 @@ char **font = 0;        // Map of pixel for every character
 void initFont(char *filename);
 int getCharIndex(char c);
 void drawPixel(int x, int y, unsigned int color);
-void drawChar(int x, int y, char c);
-int drawUnknownum_of_charar(int x, int y);
+int drawChar(int x, int y, char c);
+int drawUnknownChar(int x, int y);
 unsigned int rgbaToInt(int r, int g, int b, int a);
 
 int main() {
@@ -74,13 +74,12 @@ int main() {
     initFont("template");
 
     // Draw text 
-    printf("Input text: "); scanf("%s", text);
+    printf("Input text: "); scanf("%[^\n]s", text);
     for (i = 0; i < strlen(text); i++) {
-        drawChar(x, y, text[i]);
-        x += CHAR_WIDTH;
-        if (x > vinfo.xres) {
+        x += drawChar(x, y, text[i]);
+        if (x > vinfo.xres/SCALE) {
             x = 0;
-            y += CHAR_HEIGHT;
+            y += char_height+2;
         }
     }
     
@@ -112,7 +111,6 @@ void initFont(char *filename) {
         printf("num_of_char: %d\n", num_of_char);
         printf("char_height: %d\n", char_height);
     }
-
     char_index = (char*) malloc(num_of_char * sizeof(char));
     font = (char**) malloc(num_of_char);
     char_width = (int*) malloc(num_of_char * sizeof(int));
@@ -182,7 +180,7 @@ void drawPixel(int x, int y, unsigned int color) {
         }
 }
 
-void drawChar(int x, int y, char c) {
+int drawChar(int x, int y, char c) {
     int i = 0, j = 0, k = 0;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
@@ -192,8 +190,12 @@ void drawChar(int x, int y, char c) {
     char* pixel = 0;
 
     if (idx == -1) {
-        drawUnknownum_of_charar(x,y);
-        return;
+        return drawUnknownChar(x,y);
+    }
+
+    if (x+width+2 > vinfo.xres/SCALE) {
+        x = 0;
+        y += char_height+2;
     }
     
     width = char_width[idx];
@@ -216,12 +218,19 @@ void drawChar(int x, int y, char c) {
                 k++;
             }
         }
+
+    return width+2;
 }
 
 int drawUnknownum_of_charar(int x, int y) {
     int i = 0, j = 0, width = 4;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
+
+    if (x+width+2 > vinfo.xres/SCALE) {
+        x = 0;
+        y += char_height+2;
+    }
 
     for (i = 0; i < width+2; i++)
         for (j = 0; j < char_height+2; j++)
@@ -231,7 +240,7 @@ int drawUnknownum_of_charar(int x, int y) {
                 drawPixel(i+x, j+y, black);
             }
     
-    return width;
+    return width+2;
 }
 
 unsigned int rgbaToInt(int r, int g, int b, int a) {
