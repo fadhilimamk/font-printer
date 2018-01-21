@@ -222,7 +222,7 @@ int drawChar(int x, int y, char c) {
     return width+2;
 }
 
-int drawUnknownum_of_charar(int x, int y) {
+int drawUnknownChar(int x, int y) {
     int i = 0, j = 0, width = 4;
     unsigned int color = rgbaToInt(255, 0, 0, 0);
     unsigned int black = rgbaToInt(0, 0, 0, 0);
