@@ -83,6 +83,12 @@ int main() {
         }
     }
     
+    free(char_index);
+    free(char_width);
+    for (i = 0; i < num_of_char; i++) {
+        free(font[i]);    
+    }
+    free(font);
     munmap(fbp, screensize);
     close(fbfd);
     return 0;
@@ -90,6 +96,9 @@ int main() {
 
 void initFont(char *filename) {
     FILE *fptr;
+    size_t buffer_size = 80;
+    char *buffer = malloc(buffer_size * sizeof(char));
+    int i = 0, ret = 0;
 
     // Read from external file: filename
     fptr = fopen(filename, "r");
@@ -98,60 +107,24 @@ void initFont(char *filename) {
 
         exit(0);
     }
-
-    int* nCh = (int*) malloc(sizeof(int));
-    int* cHeight = (int*) malloc(sizeof(int));
-    fscanf (fptr, "%d %d\n", nCh, cHeight);
-
-    if (nCh == NULL || cHeight == NULL) {
+    ret = fscanf(fptr, "%d %d\n", &num_of_char, &char_height);
+    if (ret != 2) {
         printf ("failed to read font spec\n");
     } else {
-        num_of_char = *nCh;
-        char_height = *cHeight;
         printf("num_of_char: %d\n", num_of_char);
         printf("char_height: %d\n", char_height);
     }
     char_index = (char*) malloc(num_of_char * sizeof(char));
-    font = (char**) malloc(num_of_char);
+    font = (char**) malloc(num_of_char * sizeof(char*));
     char_width = (int*) malloc(num_of_char * sizeof(int));
 
-    printf("Test:\n");
-    
-    for (int i = 0; i < num_of_char; i++) {
-        char cursor;
-        int* w = (int*) malloc(sizeof(int));
-        int formatLength = 0;
-
-        // get letter
-        cursor = fgetc(fptr);
-        char_index[i] = cursor;
-
-        // get width
-        fscanf (fptr, "|%d|", w);
-        if (w == NULL) {
-            printf("Failed to read width\n");
-            return;
-        } else {
-            char_width[i] = *w;
-            formatLength = (*w) * (char_height);
-            font[i] = (char*) malloc((formatLength) * sizeof(char));
+    while (-1 != getline(&buffer, &buffer_size, fptr)) {
+        font[i] = (char*) malloc(buffer_size * sizeof(char));
+        ret = 0; ret = sscanf(buffer, "%c|%d|%[^\n]s", &char_index[i], &char_width[i], font[i]);
+        if (ret != 3) {
+            printf("Error reading line %d\n", i);
         }
-
-        // get format
-        int j = 0;
-        do {
-            cursor = fgetc(fptr);
-            if (cursor != '\n') {
-                font[i][j] = cursor;
-            }
-            j++;
-        } while (j < formatLength && cursor != '\n' && !feof(fptr));
-        
-        // print result
-        printf("letter: %c - width: %d - format_length : %d - format: %s\n", char_index[i], *w, formatLength, font[i]);
-
-        // enter new line
-        cursor = fgetc(fptr);
+        i++;
     }
 
     fclose(fptr);
