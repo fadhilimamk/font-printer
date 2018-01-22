@@ -38,7 +38,7 @@ int main() {
     int fbfd = 0;
     long int screensize = 0;
     int x = 0, y = 0, i = 0;
-    char text[256];
+    char text[1000];
 
     // Open the file for reading and writing
     fbfd = open("/dev/fb0", O_RDWR);
@@ -117,7 +117,7 @@ void initFont(char *filename) {
     font = (char**) malloc(num_of_char * sizeof(char*));
     char_width = (int*) malloc(num_of_char * sizeof(int));
 
-    while (-1 != getline(&buffer, &buffer_size, fptr)) {
+    while (-1 != getline(&buffer, &buffer_size, fptr) && 1 < num_of_char) {
         font[i] = (char*) malloc(buffer_size * sizeof(char));
         ret = 0; ret = sscanf(buffer, "%c|%d|%[^\n]s", &char_index[i], &char_width[i], font[i]);
         if (ret != 3) {
