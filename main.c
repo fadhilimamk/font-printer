@@ -12,11 +12,10 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#define CHAR_WIDTH 6
-#define CHAR_HEIGHT 20
 #define SCALE 5
 #define WHITE (rgbaToInt(255,255,255,0))
 #define BLACK (rgbaToInt(0,0,0,0))
+#define RED rgbaToInt(255, 0, 0, 0)
 
 struct fb_var_screeninfo vinfo;
 struct fb_fix_screeninfo finfo;
@@ -39,7 +38,7 @@ int main() {
     int fbfd = 0;
     long int screensize = 0;
     int x = 0, y = 0, i = 0;
-    char text[256];
+    char text[1000];
 
     // Open the file for reading and writing
     fbfd = open("/dev/fb0", O_RDWR);
@@ -104,12 +103,12 @@ void initFont(char *filename) {
     fptr = fopen(filename, "r");
     if (fptr == NULL){
         printf("Cannot open file \n");
-
         exit(0);
     }
+
     ret = fscanf(fptr, "%d %d\n", &num_of_char, &char_height);
     if (ret != 2) {
-        printf ("failed to read font spec\n");
+        printf ("Failed to read font specification!\n");
     } else {
         printf("num_of_char: %d\n", num_of_char);
         printf("char_height: %d\n", char_height);
@@ -118,15 +117,16 @@ void initFont(char *filename) {
     font = (char**) malloc(num_of_char * sizeof(char*));
     char_width = (int*) malloc(num_of_char * sizeof(int));
 
-    while (-1 != getline(&buffer, &buffer_size, fptr)) {
+    while (-1 != getline(&buffer, &buffer_size, fptr) && 1 < num_of_char) {
         font[i] = (char*) malloc(buffer_size * sizeof(char));
         ret = 0; ret = sscanf(buffer, "%c|%d|%[^\n]s", &char_index[i], &char_width[i], font[i]);
         if (ret != 3) {
-            printf("Error reading line %d\n", i);
+            printf("Error reading line %d, only read %d\n", i+2, ret);
         }
         i++;
     }
 
+    free(buffer);
     fclose(fptr);
 }
 
@@ -155,9 +155,6 @@ void drawPixel(int x, int y, unsigned int color) {
 
 int drawChar(int x, int y, char c) {
     int i = 0, j = 0, k = 0;
-    unsigned int color = rgbaToInt(255, 0, 0, 0);
-    unsigned int black = rgbaToInt(0, 0, 0, 0);
-    unsigned int white = rgbaToInt(0, 0, 0, 0);
     int idx = getCharIndex(c);
     int width = 4, pixel_length = 0;
     char* pixel = 0;
@@ -187,7 +184,7 @@ int drawChar(int x, int y, char c) {
                 if (pixel[k] == '0')
                     drawPixel(i+x, j+y, WHITE);
                 else
-                    drawPixel(i+x, j+y, color);
+                    drawPixel(i+x, j+y, RED);
                 k++;
             }
         }
@@ -197,8 +194,6 @@ int drawChar(int x, int y, char c) {
 
 int drawUnknownChar(int x, int y) {
     int i = 0, j = 0, width = 4;
-    unsigned int color = rgbaToInt(255, 0, 0, 0);
-    unsigned int black = rgbaToInt(0, 0, 0, 0);
 
     if (x+width+2 > vinfo.xres/SCALE) {
         x = 0;
@@ -208,9 +203,9 @@ int drawUnknownChar(int x, int y) {
     for (i = 0; i < width+2; i++)
         for (j = 0; j < char_height+2; j++)
             if (i>0 && i < width+1 && j>0 && j < char_height+1) {
-                drawPixel(i+x, j+y, color);
+                drawPixel(i+x, j+y, RED);
             } else {
-                drawPixel(i+x, j+y, black);
+                drawPixel(i+x, j+y, WHITE);
             }
     
     return width+2;
